@@ -24,8 +24,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Link href="/shopping-list" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
               Shopping List
             </Link>
-            <Link href="/onboarding" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-              Preferences
+            <Link href="/profile" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+              Profile
             </Link>
             <SignOutButton />
           </div>
