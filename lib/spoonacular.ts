@@ -58,6 +58,33 @@ export interface ShoppingListItem {
   aisle: string;
 }
 
+export interface BodyStats {
+  heightCm: number;
+  weightKg: number;
+  age: number;
+  gender: string; // "male" | "female" | "other"
+}
+
+/**
+ * Mifflin-St Jeor BMR → TDEE (moderate activity 1.55×),
+ * then adjusts for fitness goal.
+ */
+export function calculateTDEE(stats: BodyStats, fitnessGoal?: string): number {
+  const { heightCm, weightKg, age, gender } = stats;
+  const bmr =
+    gender === "male"
+      ? 10 * weightKg + 6.25 * heightCm - 5 * age + 5
+      : 10 * weightKg + 6.25 * heightCm - 5 * age - 161;
+
+  const tdee = Math.round(bmr * 1.55); // moderate activity
+
+  switch (fitnessGoal) {
+    case "bulking":  return tdee + 400;
+    case "cutting":  return tdee - 400;
+    default:         return tdee; // maintaining / custom
+  }
+}
+
 export interface PreferenceParams {
   diet?: string;
   intolerances?: string;

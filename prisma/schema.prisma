@@ -60,6 +60,13 @@ model UserPreferences {
   userId          String   @unique
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Body stats
+  heightCm        Float?
+  weightKg        Float?
+  age             Int?
+  gender          String?   // "male" | "female" | "other"
+
+  // Diet & goals
   diet            String?
   intolerances    String?
   fitnessGoal     String?

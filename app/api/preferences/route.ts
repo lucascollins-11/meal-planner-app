@@ -4,6 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const schema = z.object({
+  // Body stats
+  heightCm: z.number().positive().optional(),
+  weightKg: z.number().positive().optional(),
+  age: z.number().int().min(13).max(120).optional(),
+  gender: z.enum(["male", "female", "other"]).optional(),
+  // Diet & goals
   diet: z.string().optional(),
   intolerances: z.string().optional(),
   fitnessGoal: z.string().optional(),
