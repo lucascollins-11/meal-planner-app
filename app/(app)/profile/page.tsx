@@ -30,7 +30,8 @@ export default async function ProfilePage() {
           targetCalories: prefs?.targetCalories ?? null,
           targetProtein:  prefs?.targetProtein  ?? null,
           targetCarbs:    prefs?.targetCarbs    ?? null,
-          targetFat:      prefs?.targetFat      ?? null,
+          targetFat:        prefs?.targetFat        ?? null,
+          focusIngredients: prefs?.focusIngredients  ?? null,
         }}
       />
     </div>

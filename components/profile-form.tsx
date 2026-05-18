@@ -27,6 +27,19 @@ const INTOLERANCE_OPTIONS = [
   "seafood","sesame","shellfish","soy","sulfite","tree nut","wheat",
 ];
 
+const PROTEIN_OPTIONS = [
+  { value: "chicken",  label: "Chicken",  icon: "🍗" },
+  { value: "beef",     label: "Beef",     icon: "🥩" },
+  { value: "pork",     label: "Pork",     icon: "🐷" },
+  { value: "salmon",   label: "Salmon",   icon: "🐟" },
+  { value: "tuna",     label: "Tuna",     icon: "🐠" },
+  { value: "shrimp",   label: "Shrimp",   icon: "🍤" },
+  { value: "turkey",   label: "Turkey",   icon: "🦃" },
+  { value: "tofu",     label: "Tofu",     icon: "🌱" },
+  { value: "eggs",     label: "Eggs",     icon: "🥚" },
+  { value: "lamb",     label: "Lamb",     icon: "🐑" },
+];
+
 const GOAL_OPTIONS = [
   { value: "bulking",     label: "Bulking",       icon: "💪" },
   { value: "cutting",     label: "Cutting",       icon: "🔥" },
@@ -37,17 +50,18 @@ const GOAL_OPTIONS = [
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface ProfilePrefs {
-  heightCm?:       number | null;
-  weightKg?:       number | null;
-  age?:            number | null;
-  gender?:         string | null;
-  diet?:           string | null;
-  intolerances?:   string | null;
-  fitnessGoal?:    string | null;
-  targetCalories?: number | null;
-  targetProtein?:  number | null;
-  targetCarbs?:    number | null;
-  targetFat?:      number | null;
+  heightCm?:        number | null;
+  weightKg?:        number | null;
+  age?:             number | null;
+  gender?:          string | null;
+  diet?:            string | null;
+  intolerances?:    string | null;
+  fitnessGoal?:     string | null;
+  targetCalories?:  number | null;
+  targetProtein?:   number | null;
+  targetCarbs?:     number | null;
+  targetFat?:       number | null;
+  focusIngredients?: string | null;
 }
 
 interface Props { initialPrefs: ProfilePrefs }
@@ -90,6 +104,17 @@ export function ProfileForm({ initialPrefs }: Props) {
   const [intolerances,setIntolerances]= useState<string[]>(
     p.intolerances ? p.intolerances.split(",").map(s => s.trim()).filter(Boolean) : []
   );
+
+  // Focus ingredients
+  const [focusIngredients, setFocusIngredients] = useState<string[]>(
+    p.focusIngredients ? p.focusIngredients.split(",").map(s => s.trim()).filter(Boolean) : []
+  );
+
+  function toggleFocus(val: string) {
+    setFocusIngredients(prev =>
+      prev.includes(val) ? prev.filter(i => i !== val) : [...prev, val]
+    );
+  }
 
   // Goal & targets
   const [goal,           setGoal]           = useState(p.fitnessGoal ?? "");
@@ -152,7 +177,8 @@ export function ProfileForm({ initialPrefs }: Props) {
           gender:         gender  || undefined,
           diet:           diet    || undefined,
           intolerances:   intolerances.join(",") || undefined,
-          fitnessGoal:    goal    || undefined,
+          fitnessGoal:      goal              || undefined,
+          focusIngredients: focusIngredients.join(",") || undefined,
           targetCalories: targetCalories ? Number(targetCalories) : undefined,
           targetProtein:  targetProtein  ? Number(targetProtein)  : undefined,
           targetCarbs:    targetCarbs    ? Number(targetCarbs)    : undefined,
@@ -324,6 +350,39 @@ export function ProfileForm({ initialPrefs }: Props) {
             </button>
           ))}
         </div>
+      </section>
+
+      {/* ── Focus ingredients ── */}
+      <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h2 className="text-lg font-bold text-gray-900 mb-1">Ingredient focus</h2>
+        <p className="text-sm text-gray-500 mb-2">
+          Select proteins you want to build your meals around. Your plan will prioritize recipes
+          that use these ingredients — great for meal prepping or keeping your grocery list simple.
+        </p>
+        <p className="text-xs text-gray-400 mb-5">
+          Leave blank to let Spoonacular pick freely. Select multiple for variety.
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          {PROTEIN_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => toggleFocus(opt.value)}
+              className={`flex flex-col items-center gap-1.5 py-4 rounded-xl border-2 transition-all ${
+                focusIngredients.includes(opt.value)
+                  ? "border-green-500 bg-green-50"
+                  : "border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              <span className="text-2xl">{opt.icon}</span>
+              <span className="text-sm font-medium text-gray-700">{opt.label}</span>
+            </button>
+          ))}
+        </div>
+        {focusIngredients.length > 0 && (
+          <p className="mt-4 text-sm text-green-700 bg-green-50 rounded-lg px-4 py-2 border border-green-200">
+            ✓ Your next meal plan will focus on: <span className="font-semibold">{focusIngredients.join(", ")}</span>
+          </p>
+        )}
       </section>
 
       {/* ── Fitness goal ── */}

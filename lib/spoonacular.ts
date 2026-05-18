@@ -178,3 +178,153 @@ export async function getIngredientList(recipeIds: number[]): Promise<ShoppingLi
 export function getMealImage(meal: SpoonacularMeal): string {
   return `https://img.spoonacular.com/recipes/${meal.id}-312x231.${meal.imageType}`;
 }
+
+// ─── Focus-ingredient weekly plan ─────────────────────────────────────────────
+
+const DAYS = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"] as const;
+
+/**
+ * Build a weekly meal plan biased toward the given focus ingredients.
+ * Uses complexSearch with includeIngredients so Spoonacular returns recipes
+ * that actually contain those proteins/items. Assembles the same week
+ * structure as generateWeeklyMealPlan so the rest of the app is unchanged.
+ */
+export async function generateWeeklyMealPlanWithFocus(params: {
+  focusIngredients: string[];
+  diet?:            string;
+  intolerances?:    string;
+  targetCalories?:  number;
+  exclude?:         string;
+}): Promise<SpoonacularWeekPlan> {
+  const { focusIngredients, diet, intolerances, targetCalories, exclude } = params;
+
+  const baseSearch = {
+    diet,
+    intolerances,
+    addRecipeInformation: "true",
+    addRecipeNutrition:   "true",
+    ...(exclude ? { excludeIngredients: exclude } : {}),
+    ...(targetCalories
+      ? {
+          minCalories: String(Math.round(targetCalories * 0.25)),
+          maxCalories: String(Math.round(targetCalories * 0.45)),
+        }
+      : {}),
+  };
+
+  // ── 1. Fetch breakfast pool (7 slots) ──────────────────────────────────────
+  const breakfastRes = await fetch(
+    `${BASE_URL}/recipes/complexSearch?${buildQuery({
+      ...baseSearch,
+      type:   "breakfast",
+      number: "14",
+    })}`
+  );
+  const breakfastData = breakfastRes.ok ? await breakfastRes.json() : { results: [] };
+  const breakfastPool: RecipeDetail[] = breakfastData.results ?? [];
+
+  // ── 2. Fetch main-course pool per focus ingredient (14 lunch+dinner slots) ─
+  const mainPool: RecipeDetail[] = [];
+  const seenIds = new Set<number>();
+
+  // Distribute slots evenly across focus ingredients
+  const perIngredient = Math.ceil(28 / focusIngredients.length);
+
+  for (const ingredient of focusIngredients) {
+    const res = await fetch(
+      `${BASE_URL}/recipes/complexSearch?${buildQuery({
+        ...baseSearch,
+        includeIngredients: ingredient,
+        type:               "main course",
+        number:             String(perIngredient),
+        sort:               "popularity",
+      })}`
+    );
+    if (!res.ok) continue;
+    const data = await res.json();
+    for (const r of data.results ?? []) {
+      if (!seenIds.has(r.id)) {
+        seenIds.add(r.id);
+        mainPool.push(r);
+      }
+    }
+  }
+
+  // ── 3. Fetch side-dish pool to pair with mains ─────────────────────────────
+  const sidePool: RecipeDetail[] = [];
+  const sideSeen = new Set<number>();
+
+  for (const ingredient of focusIngredients) {
+    const res = await fetch(
+      `${BASE_URL}/recipes/complexSearch?${buildQuery({
+        ...baseSearch,
+        includeIngredients: ingredient,
+        type:               "side dish",
+        number:             "10",
+      })}`
+    );
+    if (!res.ok) continue;
+    const data = await res.json();
+    for (const r of data.results ?? []) {
+      if (!sideSeen.has(r.id) && !seenIds.has(r.id)) {
+        sideSeen.add(r.id);
+        sidePool.push(r);
+      }
+    }
+  }
+
+  // ── 4. Shuffle pools ───────────────────────────────────────────────────────
+  const shuffle = <T>(arr: T[]): T[] =>
+    [...arr].sort(() => Math.random() - 0.5);
+
+  const breakfasts = shuffle(breakfastPool);
+  const mains      = shuffle(mainPool);
+  const sides      = shuffle(sidePool);
+
+  // ── 5. Assemble 7-day week ─────────────────────────────────────────────────
+  function toMeal(r: RecipeDetail): SpoonacularMeal {
+    return {
+      id:             r.id,
+      title:          r.title,
+      imageType:      "jpg",
+      readyInMinutes: r.readyInMinutes ?? 30,
+      servings:       r.servings       ?? 2,
+    };
+  }
+
+  function getNutrient(r: RecipeDetail, name: string): number {
+    const n = r.nutrition?.nutrients?.find(
+      (x) => x.name.toLowerCase() === name.toLowerCase()
+    );
+    return n?.amount ?? 0;
+  }
+
+  const week: SpoonacularWeekPlan["week"] = {} as SpoonacularWeekPlan["week"];
+
+  for (let i = 0; i < 7; i++) {
+    const day = DAYS[i];
+    const breakfast = breakfasts[i % breakfasts.length];
+    const main      = mains[i % mains.length];
+    // Pair a side dish every other day (avoids repetition)
+    const side      = i % 2 === 0 && sides.length > 0 ? sides[Math.floor(i / 2) % sides.length] : null;
+
+    const dayMeals = [breakfast, main, ...(side ? [side] : [])].filter(Boolean) as RecipeDetail[];
+
+    const totalCal  = dayMeals.reduce((s, r) => s + getNutrient(r, "Calories"),      0);
+    const totalProt = dayMeals.reduce((s, r) => s + getNutrient(r, "Protein"),        0);
+    const totalFat  = dayMeals.reduce((s, r) => s + getNutrient(r, "Fat"),            0);
+    const totalCarb = dayMeals.reduce((s, r) => s + getNutrient(r, "Carbohydrates"),  0);
+
+    week[day] = {
+      meals: dayMeals.map(toMeal),
+      nutrients: {
+        calories:       Math.round(totalCal),
+        protein:        Math.round(totalProt),
+        fat:            Math.round(totalFat),
+        carbohydrates:  Math.round(totalCarb),
+      },
+    };
+  }
+
+  return { week };
+}

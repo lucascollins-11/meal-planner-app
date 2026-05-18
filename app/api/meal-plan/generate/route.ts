@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { generateWeeklyMealPlan, getRecipesBulk } from "@/lib/spoonacular";
+import { generateWeeklyMealPlan, generateWeeklyMealPlanWithFocus, getRecipesBulk } from "@/lib/spoonacular";
 import { getMondayOfCurrentWeek } from "@/lib/utils";
 
 export async function POST() {
@@ -13,14 +13,23 @@ export async function POST() {
   });
 
   try {
-    const plan = await generateWeeklyMealPlan({
-      diet: prefs?.diet ?? undefined,
-      intolerances: prefs?.intolerances ?? undefined,
-      targetCalories: prefs?.targetCalories ?? undefined,
-      exclude: prefs?.excludedIngredients ?? undefined,
-    });
+    const focusIngredients = prefs?.focusIngredients
+      ? prefs.focusIngredients.split(",").map((s) => s.trim()).filter(Boolean)
+      : [];
 
-    // Collect all meal IDs to fetch full recipe details
+    const commonParams = {
+      diet:           prefs?.diet            ?? undefined,
+      intolerances:   prefs?.intolerances    ?? undefined,
+      targetCalories: prefs?.targetCalories  ?? undefined,
+      exclude:        prefs?.excludedIngredients ?? undefined,
+    };
+
+    const plan = focusIngredients.length > 0
+      ? await generateWeeklyMealPlanWithFocus({ ...commonParams, focusIngredients })
+      : await generateWeeklyMealPlan(commonParams);
+
+    // Collect all meal IDs to fetch full recipe details.
+    // For focus plans, recipes are already enriched; for standard plans we bulk-fetch.
     const days = Object.values(plan.week);
     const allIds = days.flatMap((d) => d.meals.map((m) => m.id));
     const uniqueIds = [...new Set(allIds)];

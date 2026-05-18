@@ -20,6 +20,7 @@ const schema = z.object({
   mealsPerDay: z.number().min(2).max(6).default(3),
   cuisines: z.string().optional(),
   excludedIngredients: z.string().optional(),
+  focusIngredients: z.string().optional(),
   onboardingDone: z.boolean().optional(),
 });
 

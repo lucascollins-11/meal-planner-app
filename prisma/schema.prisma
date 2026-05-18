@@ -75,9 +75,10 @@ model UserPreferences {
   targetCarbs     Int?
   targetFat       Int?
   mealsPerDay     Int      @default(3)
-  cuisines        String?
+  cuisines            String?
   excludedIngredients String?
-  onboardingDone  Boolean  @default(false)
+  focusIngredients    String?   // comma-separated, e.g. "chicken,salmon"
+  onboardingDone      Boolean  @default(false)
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
